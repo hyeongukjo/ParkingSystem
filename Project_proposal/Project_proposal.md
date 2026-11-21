@@ -149,6 +149,8 @@ public interface ParkingService {
     SlotInfo enter(String plate, VehicleType type) throws ParkingException; // 만차·중복 시 예외
     Receipt exit(String plate) throws ParkingException;                    // 요금 계산 포함
     List<SlotInfo> getSlots();                                             // 화면 갱신용
+    Optional<SlotInfo> findByPlate(String plate);                          // 차량 검색
+    List<Receipt> getHistory();                                            // 입출차 기록 조회
 }
 ```
 
