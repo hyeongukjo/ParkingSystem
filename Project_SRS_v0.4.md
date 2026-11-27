@@ -5,7 +5,7 @@
 | 항목       | 내용                                            |
 | ---------- | ----------------------------------------------- |
 | 프로젝트명 | Java 기반 2D 주차장 관리 시스템 (ParkingSystem) |
-| 문서       | 1차 제출본 (v0.2)                               |
+| 문서       | 1차 제출본 (v0.4)                               |
 | 백엔드     | 박준후 (2024245122)                             |
 | 프론트엔드 | 조현국 (2021240487)                             |
 | GitHub     | https://github.com/hyeongukjo/ParkingSystem     |
@@ -31,7 +31,7 @@
 | 주차장 구성       | A, B, C, D 총 4개 구역, 구역별 10개 공간                          |
 | 주차 공간 식별자  | A-01 ~ D-10                                                       |
 | 지원 차종         | 승용차, 트럭, 이륜차                                              |
-| 데이터 저장       | 현재 주차 상태는 실행 중 관리하며, 완료된 출차 기록은 파일에 저장 |
+| 데이터 저장       | 완료된 출차 기록(`parking_history.csv`)과 현재 주차 상태(`parking_state.csv`)를 입·출차 시마다 파일에 저장, 재실행 시 복원 |
 | 협업              | GitHub, Eclipse EGit을 이용한 Pull/Commit/Push                    |
 
 사용자는 GUI에서 입차 시 차량번호와 차종을, 출차 및 검색 시 차량번호를 입력하여 요청한다.
@@ -69,12 +69,12 @@
 | FR-04 | 주차장 시각화         | Graphics2D로 A~D 구역 40개 주차 공간, 차로, 입·출구, 화단 등을 탑다운 방식으로 렌더링한다. 차종별 도트 스프라이트(승용차·트럭·이륜차)로 점유 공간을 표시하고, 빈 공간은 초록 점으로 구분한다. |
 | FR-05 | 입차 애니메이션       | 입차 성공 시 차량이 입구에서 배정 공간까지 이동한다. 이동 경로는 점선으로, 도착 공간은 테두리 강조 효과로 표시한다.                                                  |
 | FR-06 | 출차 애니메이션       | 출차 성공 시 차량이 기존 주차 공간에서 출구까지 이동하고 애니메이션 종료 후 차량 그림을 제거한다.                                                                    |
-| FR-07 | 주차 요금             | 입차 시각과 출차 시각의 차이를 기준으로 기본요금 및 추가요금을 계산한다. 모든 차종에 동일한 요금 정책을 적용한다. 출차 시 이용 시간과 최종 요금을 표시한다.          |
+| FR-07 | 주차 요금             | 입차 시각과 출차 시각의 차이를 기준으로 최초 30분 1,000원, 이후 10분당 500원(10분 미만 올림)으로 계산한다. 모든 차종에 동일한 요금 정책을 적용한다(2.4). 출차 시 이용 시간과 최종 요금을 표시한다.          |
 | FR-08 | 차량 검색             | 사이드바 입력창에 차량번호를 입력하고 검색 버튼을 누르면 현재 주차 중인 차량과 해당 공간을 찾아 주차장 맵에서 강조하고 상세 말풍선을 표시한다. 검색 결과가 없으면 사용자에게 안내한다. |
 | FR-09 | 차량 상세 조회        | 주차된 차량을 클릭하면 번호판, 입차 시각, 경과 시간, 예상 요금을 말풍선으로 표시한다. 말풍선에서 해당 차량의 출차를 요청할 수 있다.                                  |
 | FR-10 | 주차 현황             | 전체 공간 수, 사용 중인 공간 수, 빈 공간 수, 점유율 및 오늘 매출(`getHistory()` 중 당일 출차 기록의 요금 합계)을 사이드바에 표시한다. 입·출차에 따라 갱신한다. |
-| FR-11 | 최근 입·출차 기록 | 프론트엔드는 `getSlots()`에서 현재 주차 중인 차량의 입차 기록을, `getHistory()`에서 출차가 완료된 차량의 입차 및 출차 기록을 가져와 최신순으로 최대 5건을 사이드바에 표시한다. |                       
-| FR-12 | 기록 저장 및 조회     | 완료된 출차의 차량번호, 입차 시각, 출차 시각, 요금 등을 파일에 저장한다. 프로그램 재실행 후에도 완료된 기록을 조회할 수 있어야 한다.                                 |
+| FR-11 | 최근 입·출차 기록 | 프론트엔드는 `getSlots()`에서 현재 주차 중인 차량의 입차 기록을, `getHistory()`에서 출차가 완료된 차량의 입차 및 출차 기록을 가져와 최신순으로 최대 5건을 사이드바에 표시한다. |
+| FR-12 | 기록 저장 및 복원     | 완료된 출차 기록(차량번호, 입차 시각, 출차 시각, 요금 등)과 현재 주차 상태(공간 식별자, 차량번호, 차종, 입차 시각)를 입·출차가 일어날 때마다 파일에 저장한다. 프로그램 재실행 시 주차 상태를 복원하고 완료된 기록을 조회할 수 있어야 한다. |
 | FR-13 | 오류 안내             | 입력 형식 오류, 중복 입차, 만차, 미등록 차량 출차 등의 상황을 사용자에게 안내한다. 실패한 요청은 정상적인 주차 상태를 변경하지 않는다. |
 
 ### 2.1 입차 처리
@@ -103,9 +103,25 @@
 
 ### 2.4 주차 요금 계산 규칙
 
-요금은 기본요금과 기본시간 초과분에 대한 추가요금으로 구성하며, 모든 차종에 동일한 정책을 적용한다. 예상 요금과 최종 요금은 동일한 요금 계산 클래스를 이용하되, 각각 조회 시각과 실제 출차 시각을 기준으로 계산한다.
+요금은 기본요금과 기본시간 초과분에 대한 추가요금으로 구성하며, 모든 차종에 동일한 정책을 적용한다. 예상 요금과 최종 요금은 동일한 요금 계산 클래스(`FeeCalculator`)를 이용하되, 각각 조회 시각과 실제 출차 시각을 기준으로 계산한다.
 
-기본시간, 기본요금, 추가시간 단위, 추가요금, 시간 단위 올림 여부는 추후 협의.
+| 항목 | 규칙 |
+| --- | --- |
+| 기본요금 | 최초 30분까지 1,000원 |
+| 추가요금 | 30분 초과 시 10분마다 500원 (10분 미만은 올림) |
+| 시간 기준 | 분 단위로 계산하며 초는 버림 |
+| 적용 차종 | 전 차종 동일 |
+
+요금 계산식: 주차 시간이 `m`분일 때, `m ≤ 30`이면 1,000원, `m > 30`이면 `1,000 + ⌈(m − 30) / 10⌉ × 500`원
+
+| 주차 시간 | 요금 |
+| --- | --- |
+| 0~30분 | 1,000원 |
+| 31~40분 | 1,500원 |
+| 60분 | 2,500원 |
+| 120분 | 5,500원 |
+
+현재 시각은 `LocalDateTime.now()`를 직접 호출하지 않고, `ParkingServiceImpl`이 생성자로 주입받은 `java.time.Clock`을 기준으로 구한다. 이를 통해 테스트 및 시연 시 시각을 조정하여 요금 계산을 검증할 수 있다.
 
 ### 2.5 주차 공간 배정 규칙
 
@@ -124,7 +140,7 @@
 | NFR-03 | 응답성        | Swing Timer를 이용하여 애니메이션을 처리하며 화면 갱신을 장시간 차단하지 않도록 한다.                                                                                                                   |
 | NFR-04 | 모듈화        | GUI, 차량 및 공간 관리, 요금 계산, 파일 저장 기능을 분리하고 각 클래스는 담당 기능에 집중하도록 설계한다.                                                                                               |
 | NFR-05 | 캡슐화        | 프론트엔드는 ParkingService와 조회용 데이터만 사용하며 백엔드의 Vehicle, ParkingSlot 내부 상태를 직접 변경하지 않는다.                                                                                  |
-| NFR-06 | 데이터 보존   | 정상적으로 완료된 출차 기록은 프로그램을 종료한 이후에도 조회할 수 있어야 한다.                                                                                                                         |
+| NFR-06 | 데이터 보존   | 완료된 출차 기록과 현재 주차 상태는 입·출차 시마다 저장되어, 프로그램이 비정상 종료되더라도 마지막 입·출차 시점의 상태로 복원할 수 있어야 한다. |
 | NFR-07 | 개발 및 협업  | 외부 UI 라이브러리 없이 구현하며, 공유 인터페이스와 데이터 규격의 변경 사항을 GitHub에서 관리한다.                                                                                                      |
 
 ## 4. 데이터 규격
@@ -181,18 +197,29 @@ Vehicle을 추상 클래스로 정의하고 Car, Motorcycle, Truck을 하위 클
 
 출차 후에는 해당 공간이 비워지므로 출차 애니메이션에 필요한 공간 번호와 차종을 `Receipt`에 포함한다. `Receipt`는 출차 결과 표시와 완료 기록 조회에 공통으로 사용한다. 시간은 음수일 수 없으며 출차 시각은 입차 시각보다 이전일 수 없다.
 
-### 4.5 기록 파일 형식 (초안)
+### 4.5 기록 파일 형식
 
-완료된 출차 기록은 UTF-8 CSV 파일(`parking_history.csv`)에 저장하는 방식을 제안한다. 한 행은 한 건의 완료된 주차 기록을 의미하며, 입차 및 출차 시간은 연도, 월, 일, 시, 분, 초를 포함한 형식(예: 2026-11-24T10:30:00)으로 기록한다.
+완료된 출차 기록과 현재 주차 상태는 각각 UTF-8 CSV 파일에 저장한다. 두 파일 모두 프로그램 종료 시가 아니라 입·출차가 일어날 때마다 저장하여, 비정상 종료 시에도 데이터가 유지되도록 한다.
+
+**완료된 출차 기록 (`parking_history.csv`)**: 출차가 완료될 때마다 한 행씩 추가한다. 한 행은 한 건의 완료된 주차 기록을 의미하며, 입차 및 출차 시간은 연도, 월, 일, 시, 분, 초를 포함한 형식(예: 2026-11-24T10:30:00)으로 기록한다.
 
 ```csv
 plate,type,slotId,entryTime,exitTime,durationMinutes,fee
 12가3456,CAR,A-05,2026-11-24T10:00:00,2026-11-24T11:00:00,60,2000
 ```
 
+**현재 주차 상태 (`parking_state.csv`)**: 입·출차가 일어날 때마다 현재 주차 중인 차량 전체로 파일을 덮어쓴다. 빈 공간은 기록하지 않는다.
+
+```csv
+slotId,plate,type,entryTime
+A-01,12가3456,CAR,2026-11-24T10:00:00
+B-03,34나7812,TRUCK,2026-11-24T10:15:00
+```
+
+프로그램 시작 시 `parking_state.csv`를 읽어 주차 상태를 복원하며, 복원된 차량의 경과 시간과 예상 요금은 기록된 입차 시각을 기준으로 계산한다. 파일이 없으면 빈 주차장으로 시작한다.
+
 `getHistory()`는 출차가 완료된 차량의 기록을 반환한다.
 최근 입·출차 기록은 현재 주차 중인 차량의 입차 기록과 출차가 완료된 차량의 입차 및 출차 기록을 합쳐 최신 시간순으로 최대 5건을 표시한다(FR-11).
-프로그램 종료 시 현재 주차 중인 차량의 정보를 저장하고, 재실행 시 복원할 것인지 추후 협의.
 
 ## 5. 핵심 인터페이스 규약
 
@@ -313,12 +340,63 @@ config:
 classDiagram
     direction TB
 
-    class ParkingFrame
-    class LotPanel
-    class SidebarPanel
-    class SlotLayout
-    class SpriteFactory
-    class AnimationController
+    class ParkingFrame {
+        -ParkingService service
+        -LotPanel lotPanel
+        -SidebarPanel sidebar
+        +ParkingFrame(ParkingService service)
+        +handleEnter(String plate, VehicleType type) void
+        +handleExit(String plate) void
+        +handleSearch(String plate) void
+        +refreshAll() void
+    }
+    class LotPanel {
+        -List~SlotInfo~ slots
+        -SlotLayout layout
+        -SpriteFactory sprites
+        -AnimationController animator
+        -String selectedSlotId
+        +updateSlots(List~SlotInfo~ slots) void
+        +highlight(String slotId) void
+        +showDetail(SlotInfo info) void
+        +playEnter(String slotId, VehicleType type, Runnable onFinish) void
+        +playExit(String slotId, VehicleType type, Runnable onFinish) void
+        #paintComponent(Graphics g) void
+    }
+    class SidebarPanel {
+        -JTextField plateField
+        -VehicleType selectedType
+        -JButton enterButton
+        -JButton exitButton
+        -JButton searchButton
+        +updateSummary(List~SlotInfo~ slots, List~Receipt~ history) void
+        +updateRecentLogs(List~SlotInfo~ slots, List~Receipt~ history) void
+        +isValidPlate(String plate) boolean
+        +showInputError(String message) void
+        +setInputEnabled(boolean enabled) void
+    }
+    class SlotLayout {
+        -Map~String, Rectangle~ slotBounds
+        +getBounds(String slotId) Rectangle
+        +getCenter(String slotId) Point
+        +findSlotAt(Point p) String
+        +getEntryPath(String slotId) List~Point~
+        +getExitPath(String slotId) List~Point~
+    }
+    class SpriteFactory {
+        -Map~VehicleType, BufferedImage~ cache
+        +getSprite(VehicleType type) BufferedImage
+    }
+    class AnimationController {
+        -Timer timer
+        -List~Point~ path
+        -double progress
+        -VehicleType type
+        +start(List~Point~ path, VehicleType type, Runnable onFinish) void
+        +isRunning() boolean
+        +getPosition() Point
+        +getAngle() double
+    }
 
     class ParkingService
     class MockParkingService
@@ -385,13 +463,13 @@ classDiagram
 | SpriteFactory          | 차종별 도트 스프라이트 생성 및 캐싱 (VehicleType → 이미지)                |
 | AnimationController    | Swing Timer를 이용한 입·출차 차량 좌표 갱신                               |
 | ParkingService         | 프론트엔드와 백엔드 사이의 공용 인터페이스                                |
-| ParkingServiceImpl     | 입·출차, 빈 공간 자동 배정, 검색, 현황 및 기록 조회 처리                  |
+| ParkingServiceImpl     | 입·출차, 빈 공간 자동 배정, 검색, 현황 및 기록 조회 처리. 현재 시각은 주입받은 `Clock`으로 구함 |
 | MockParkingService     | 실제 백엔드 완성 전 동일 인터페이스를 이용한 화면 검증                    |
 | Vehicle 및 하위 클래스     | 차량 정보와 차종별 객체 관리                                              |
 | ParkingSlot            | 개별 주차 공간의 식별자 및 차량 배정 상태 관리                            |
 | SlotInfo, Receipt      | 주차 상태와 출차 결과를 전달하는 조회용 데이터                            |
-| FeeCalculator          | 주차 시간에 따른 공통 요금 계산                                           |
-| HistoryRepository      | 완료된 출차 기록의 파일 저장 및 불러오기                                  |
+| FeeCalculator          | 주차 시간에 따른 공통 요금 계산 (최초 30분 1,000원, 이후 10분당 500원)    |
+| HistoryRepository      | 완료된 출차 기록(`parking_history.csv`) 및 현재 주차 상태(`parking_state.csv`)의 파일 저장 및 불러오기 |
 | ParkingException       | 규칙 위반 및 입·출차 처리 오류 전달                                       |
 
 ## 8. 예외 처리 및 검증 기준
@@ -408,6 +486,8 @@ classDiagram
 | 차량 검색 결과 없음               | Optional.empty() 반환, 사용자 안내                                                    |
 | 파일 저장 실패                    | 출차 완료로 표시하지 않고 오류 안내. 기존 차량 상태 유지 및 불완전한 기록 방지 (초안) |
 | 기록 파일 읽기 실패               | 초기화 시 오류 안내, 기존 파일 덮어쓰기 방지 (초안)                                   |
+| 주차 상태 파일 없음               | 빈 주차장으로 시작                                                                    |
+| 주차 상태 파일 읽기 실패          | 오류 안내 후 빈 주차장으로 시작, 기존 파일 덮어쓰기 방지 (초안)                       |
 
 ## 9. 팀원별 역할 분담
 
@@ -423,9 +503,7 @@ classDiagram
 
 | 항목 | 현재 상태 |
 | --- | --- |
-| 요금 정책 | 차종 공통 적용 확정. 기본요금, 기본시간, 추가요금, 시간 처리 기준 미정 |
-| UML Class Diagram | 현재는 클래스 간의 관계를 중심으로 작성하였으며, 추후 각 클래스의 필드, 메서드 및 세부 구조를 구체화할 필요가 있음 |
-| 기록 저장 | 현재 주차 상태의 재실행 후 복원 여부 미정 |
+| UML Class Diagram | 핵심 클래스의 주요 필드와 public 메서드까지 표기하는 것으로 확정. 프론트엔드 클래스는 반영 완료, 백엔드 클래스는 구체화 예정 |
 
 ### 10.2 변경 이력
 
@@ -434,3 +512,4 @@ classDiagram
 | v0.1 | 2026.11.24 | 최종 프로젝트 제안서 및 초기 UI 설계안을 바탕으로 기능적·비기능적 요구사항, 주차장 구성, 공간 배정 규칙, 데이터 규격, 공용 인터페이스, UML 및 검증 기준 최초 작성(초안) |
 | v0.2 | 2026.11.24 | 전기차 및 전기차 충전 공간 관련 내용 전체 삭제(전 공간 일반 주차 공간으로 통일, `ElectricCar`·`ELECTRIC_CAR`·`SlotType` 제거), 화면 구성(1.4) 추가, FR-04 작성, FR-08·10·11 구체화, 차량번호 입력 규칙 확정(5.1), 상태 갱신 규칙 확정 및 이동 경로 추가(5.3·5.4), 프론트엔드 클래스 구조 반영(7장), 역할 분담 및 협의 사항 갱신 |
 | v0.3 | 2026.11.27 | 프로젝트 개요 수정, 최근 입·출차 기록 조회 및 표시 방식 개선(FR-11, 4.5), 주차 공간 배정 규칙과 추후 협의 사항 간 불일치 수정, 확정된 협의 항목 제거 |
+| v0.4 | 2026.11.27 | 요금 정책 확정 및 계산 예시 추가(2.4, FR-07), `Clock` 주입 방식 명시, 현재 주차 상태 저장·복원 확정 및 `parking_state.csv` 형식 추가(1.2, FR-12, NFR-06, 4.5, 8.1), 프론트엔드 클래스 필드·메서드 구체화(7장), 협의 사항 갱신 |
