@@ -5,7 +5,7 @@
 | 항목       | 내용                                            |
 | ---------- | ----------------------------------------------- |
 | 프로젝트명 | Java 기반 2D 주차장 관리 시스템 (ParkingSystem) |
-| 문서       | 1차 제출본 (v0.4)                               |
+| 문서 | 1차 제출본 (v0.5) |
 | 백엔드     | 박준후 (2024245122)                             |
 | 프론트엔드 | 조현국 (2021240487)                             |
 | GitHub     | https://github.com/hyeongukjo/ParkingSystem     |
@@ -83,7 +83,7 @@
 2. 프론트엔드는 차량번호 형식과 차종 선택 여부를 확인하고 `ParkingService.enter(plate, type)`을 호출한다.
 3. 백엔드는 입력값, 차량번호 중복 여부 및 빈 공간의 존재 여부를 검사한다.
 4. 주차 공간 배정 규칙에 따라 빈 공간을 배정하고 차종에 맞는 차량 객체를 생성하여 입차 시각을 기록한다.
-5. 배정된 공간의 `SlotInfo`를 반환한다.
+5. 변경된 주차 상태를 파일에 저장하고 배정된 공간의 `SlotInfo`를 반환한다.
 6. 프론트엔드는 반환된 `slotId`의 화면 좌표까지 차량 이동 애니메이션을 실행하고, 종료 후 주차 현황을 갱신한다.
 7. 실패한 경우 `ParkingException`을 처리하여 안내 메시지를 표시하며 애니메이션을 실행하지 않는다.
 
@@ -92,7 +92,7 @@
 1. 사용자가 차량번호를 입력하거나 주차된 차량의 말풍선에서 출차를 요청한다.
 2. 프론트엔드는 `ParkingService.exit(plate)`를 호출한다.
 3. 백엔드는 해당 차량을 검색하고 입차 시각과 출차 시각을 기준으로 이용 시간 및 최종 요금을 계산한다.
-4. 출차 기록을 저장하고 주차 공간을 해제한 뒤 `Receipt`를 반환한다.
+4. 출차 기록과 공간 해제 후의 주차 상태를 파일에 저장한다. 저장이 정상적으로 완료되면 공간 해제를 확정하고 `Receipt`를 반환한다.
 5. 프론트엔드는 반환된 공간 번호(`slotId`)와 차종(`type`)을 이용해 애니메이션이 끝날 때까지 차량을 임시로 그리며 출차 애니메이션을 실행하고, 이용 시간과 최종 요금을 표시한다.
 6. 애니메이션 종료 후 차량 그림을 제거하고 주차 현황 및 최근 기록을 갱신한다.
 7. 미등록 차량 등 처리 실패 시 오류를 안내하고 출차 애니메이션을 실행하지 않는다.
@@ -162,12 +162,21 @@
 | 클래스      | 필드      | 자료형        | 설명                                         |
 | ----------- | --------- | ------------- | -------------------------------------------- |
 | Vehicle     | plate     | String        | 현재 주차 중인 차량 사이에서 유일한 차량번호 |
-| Vehicle     | type      | VehicleType   | 차량의 유형                                  |
 | Vehicle     | entryTime | LocalDateTime | 입차 처리 시 기록한 시각                     |
-| ParkingSlot | slotId    | String        | 고유한 주차 공간 식별자 (A-01 ~ D-10)        |
+| ParkingSlot | slotId    | String        | 고유한 주차 공간 식별자 (A-01 ~ D-10)         |
 | ParkingSlot | vehicle   | Vehicle       | 배정된 차량 객체, 빈 공간인 경우 null        |
 
-Vehicle을 추상 클래스로 정의하고 Car, Motorcycle, Truck을 하위 클래스로 구성한다. 차량의 배정 공간은 ParkingSlot의 차량 참조를 기준으로 관리한다.
+Vehicle을 추상 클래스로 정의하고 Car, Motorcycle, Truck을 하위 클래스로 구성한다.
+
+각 하위 클래스는 `getType()`과 `getDisplayName()`을 재정의하여 자신의 차량 유형과 차종 이름을 반환한다.
+
+| 하위 클래스 | getType() 반환값 | getDisplayName() 반환값 |
+| --- | --- | --- |
+| Car | VehicleType.CAR | 승용차 |
+| Truck | VehicleType.TRUCK | 트럭 |
+| Motorcycle | VehicleType.MOTORCYCLE | 이륜차 |
+
+차량의 배정 공간은 ParkingSlot의 차량 참조를 기준으로 관리한다.
 
 ### 4.3 주차 공간 조회 데이터 (SlotInfo)
 
@@ -205,7 +214,7 @@ Vehicle을 추상 클래스로 정의하고 Car, Motorcycle, Truck을 하위 클
 
 ```csv
 plate,type,slotId,entryTime,exitTime,durationMinutes,fee
-12가3456,CAR,A-05,2026-11-24T10:00:00,2026-11-24T11:00:00,60,2000
+12가3456,CAR,A-05,2026-11-24T10:00:00,2026-11-24T11:00:00,60,2500
 ```
 
 **현재 주차 상태 (`parking_state.csv`)**: 입·출차가 일어날 때마다 현재 주차 중인 차량 전체로 파일을 덮어쓴다. 빈 공간은 기록하지 않는다.
@@ -242,7 +251,7 @@ public interface ParkingService {
 
 | 메서드      | 입력        | 반환값 및 처리 규약                                                                                                                                           |
 | ----------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enter       | plate, type | 빈 공간을 식별자 순서에 따라 배정하고 SlotInfo를 반환한다. 잘못된 입력, 중복 입차, 이용 가능한 공간 부족 시 ParkingException을 발생시킨다.                    |
+| enter | plate, type | 빈 공간을 식별자 순서에 따라 배정하고 SlotInfo를 반환한다. 잘못된 입력, 중복 입차, 이용 가능한 공간 부족 또는 저장 실패 시 ParkingException을 발생시킨다. |
 | exit        | plate       | 출차를 완료하고 Receipt를 반환한다. 미등록 차량, 요금 계산 오류 또는 저장 실패 시 ParkingException을 발생시킨다.                                              |
 | getSlots    | 없음        | 전체 40개 공간의 조회용 SlotInfo 목록을 반환한다. 빈 공간도 포함하며 A-01부터 D-10까지 식별자 순서로 정렬한다.                                                |
 | findByPlate | plate       | 차량번호를 이용하여 현재 주차 중인 차량을 검색한다. 차량이 존재하면 주차 공간 및 차량 정보(SlotInfo)를 반환하고, 존재하지 않으면 Optional.empty()를 반환한다. |
@@ -398,22 +407,130 @@ classDiagram
         +getAngle() double
     }
 
-    class ParkingService
+        class ParkingService {
+        <<interface>>
+        +enter(String plate, VehicleType type) SlotInfo
+        +exit(String plate) Receipt
+        +getSlots() List~SlotInfo~
+        +findByPlate(String plate) Optional~SlotInfo~
+        +getHistory() List~Receipt~
+    }
+
     class MockParkingService
-    class ParkingServiceImpl
 
-    class ParkingSlot
-    class Vehicle
-    class Car
-    class Motorcycle
-    class Truck
+    class ParkingServiceImpl {
+        -List~ParkingSlot~ slots
+        -List~Receipt~ history
+        -FeeCalculator feeCalculator
+        -HistoryRepository repository
+        -Clock clock
+        -boolean storageAvailable
+        +ParkingServiceImpl(Clock clock)
+        +enter(String plate, VehicleType type) SlotInfo
+        +exit(String plate) Receipt
+        +getSlots() List~SlotInfo~
+        +findByPlate(String plate) Optional~SlotInfo~
+        +getHistory() List~Receipt~
+    }
 
-    class VehicleType
-    class SlotInfo
-    class Receipt
-    class FeeCalculator
-    class HistoryRepository
-    class ParkingException
+    class ParkingSlot {
+        -String slotId
+        -Vehicle vehicle
+        +ParkingSlot(String slotId)
+        +getSlotId() String
+        +getVehicle() Vehicle
+        +isOccupied() boolean
+        +assignVehicle(Vehicle vehicle) void
+        +releaseVehicle() void
+    }
+
+    class Vehicle {
+        <<abstract>>
+        -String plate
+        -LocalDateTime entryTime
+        #Vehicle(String plate, LocalDateTime entryTime)
+        +getPlate() String
+        +getEntryTime() LocalDateTime
+        +getType() VehicleType*
+        +getDisplayName() String*
+    }
+
+    class Car {
+        +Car(String plate, LocalDateTime entryTime)
+        +getType() VehicleType
+        +getDisplayName() String
+    }
+
+    class Motorcycle {
+        +Motorcycle(String plate, LocalDateTime entryTime)
+        +getType() VehicleType
+        +getDisplayName() String
+    }
+
+    class Truck {
+        +Truck(String plate, LocalDateTime entryTime)
+        +getType() VehicleType
+        +getDisplayName() String
+    }
+
+    class VehicleType {
+        <<enumeration>>
+        CAR
+        TRUCK
+        MOTORCYCLE
+    }
+
+    class SlotInfo {
+        -String slotId
+        -boolean occupied
+        -String plate
+        -VehicleType type
+        -LocalDateTime entryTime
+        -Long elapsedMinutes
+        -Long estimatedFee
+        +getSlotId() String
+        +isOccupied() boolean
+        +getPlate() String
+        +getType() VehicleType
+        +getEntryTime() LocalDateTime
+        +getElapsedMinutes() Long
+        +getEstimatedFee() Long
+    }
+
+    class Receipt {
+        -String plate
+        -VehicleType type
+        -String slotId
+        -LocalDateTime entryTime
+        -LocalDateTime exitTime
+        -long durationMinutes
+        -long fee
+        +getPlate() String
+        +getType() VehicleType
+        +getSlotId() String
+        +getEntryTime() LocalDateTime
+        +getExitTime() LocalDateTime
+        +getDurationMinutes() long
+        +getFee() long
+    }
+
+    class FeeCalculator {
+        +calculateMinutes(LocalDateTime entryTime, LocalDateTime endTime) long
+        +calculateFee(long durationMinutes) long
+    }
+
+    class HistoryRepository {
+        -Path historyPath
+        -Path statePath
+        +loadHistory() List~Receipt~
+        +loadState(List~ParkingSlot~ slots) void
+        +saveState(List~ParkingSlot~ slots) void
+        +saveExit(Receipt receipt, List~ParkingSlot~ slots) void
+    }
+
+    class ParkingException {
+        +ParkingException(String message)
+    }
 
     ParkingFrame *-- LotPanel
     ParkingFrame *-- SidebarPanel
@@ -431,19 +548,20 @@ classDiagram
     ParkingService ..> VehicleType
     ParkingService ..> ParkingException
 
-    ParkingServiceImpl *-- ParkingSlot
+        ParkingServiceImpl "1" *-- "40" ParkingSlot
     ParkingServiceImpl --> FeeCalculator
     ParkingServiceImpl --> HistoryRepository
 
-    ParkingSlot --> Vehicle
+    ParkingSlot "1" --> "0..1" Vehicle
 
     Vehicle <|-- Car
     Vehicle <|-- Motorcycle
     Vehicle <|-- Truck
 
-    Vehicle --> VehicleType
+    Vehicle ..> VehicleType
 
     HistoryRepository ..> Receipt
+    HistoryRepository ..> ParkingSlot
     ParkingServiceImpl ..> SlotInfo
     ParkingServiceImpl ..> Receipt
     LotPanel ..> SlotInfo
@@ -462,15 +580,17 @@ classDiagram
 | SlotLayout             | 공간 식별자(A-01 등)와 화면 좌표 매핑, 입·출차 이동 경로 계산             |
 | SpriteFactory          | 차종별 도트 스프라이트 생성 및 캐싱 (VehicleType → 이미지)                |
 | AnimationController    | Swing Timer를 이용한 입·출차 차량 좌표 갱신                               |
-| ParkingService         | 프론트엔드와 백엔드 사이의 공용 인터페이스                                |
-| ParkingServiceImpl     | 입·출차, 빈 공간 자동 배정, 검색, 현황 및 기록 조회 처리. 현재 시각은 주입받은 `Clock`으로 구함 |
-| MockParkingService     | 실제 백엔드 완성 전 동일 인터페이스를 이용한 화면 검증                    |
-| Vehicle 및 하위 클래스     | 차량 정보와 차종별 객체 관리                                              |
-| ParkingSlot            | 개별 주차 공간의 식별자 및 차량 배정 상태 관리                            |
-| SlotInfo, Receipt      | 주차 상태와 출차 결과를 전달하는 조회용 데이터                            |
-| FeeCalculator          | 주차 시간에 따른 공통 요금 계산 (최초 30분 1,000원, 이후 10분당 500원)    |
-| HistoryRepository      | 완료된 출차 기록(`parking_history.csv`) 및 현재 주차 상태(`parking_state.csv`)의 파일 저장 및 불러오기 |
-| ParkingException       | 규칙 위반 및 입·출차 처리 오류 전달                                       |
+| ParkingService | 프론트엔드와 백엔드 사이의 공용 인터페이스 |
+| ParkingServiceImpl | 입·출차, 빈 공간 자동 배정, 중복 검사, 차량 검색, 현황 및 기록 조회 처리. Clock을 이용한 현재 시각 관리 |
+| MockParkingService | 실제 백엔드 완성 전 동일 인터페이스를 이용한 화면 검증 |
+| Vehicle | 차량번호와 입차 시각 등 차량의 공통 정보 관리 |
+| Car, Truck, Motorcycle | Vehicle을 상속받으며 각 차량의 유형과 차종 이름을 반환 |
+| VehicleType | 승용차, 트럭, 이륜차를 구분하는 enum |
+| ParkingSlot | 개별 주차 공간의 식별자 및 차량 배정 상태 관리 |
+| SlotInfo, Receipt | 주차 상태와 출차 결과를 프론트엔드에 전달하는 조회용 데이터 |
+| FeeCalculator | 주차 시간 및 예상·최종 요금 계산 |
+| HistoryRepository | 완료된 출차 기록과 현재 주차 상태의 파일 저장 및 불러오기 |
+| ParkingException | 규칙 위반 및 입·출차 처리 오류 전달 |
 
 ## 8. 예외 처리 및 검증 기준
 
@@ -484,10 +604,12 @@ classDiagram
 | 만차                              | ParkingException 발생, 신규 배정 없음                                                 |
 | 미등록 차량 출차                  | ParkingException 발생, 기존 공간 상태 유지                                            |
 | 차량 검색 결과 없음               | Optional.empty() 반환, 사용자 안내                                                    |
-| 파일 저장 실패                    | 출차 완료로 표시하지 않고 오류 안내. 기존 차량 상태 유지 및 불완전한 기록 방지 (초안) |
-| 기록 파일 읽기 실패               | 초기화 시 오류 안내, 기존 파일 덮어쓰기 방지 (초안)                                   |
-| 주차 상태 파일 없음               | 빈 주차장으로 시작                                                                    |
-| 주차 상태 파일 읽기 실패          | 오류 안내 후 빈 주차장으로 시작, 기존 파일 덮어쓰기 방지 (초안)                       |
+| 요금 계산 오류 | ParkingException 발생, 기존 차량 및 주차 상태 유지 |
+| 파일 저장 실패 | 입·출차 실패로 처리하고 오류를 안내한다. 기존 차량 및 주차 상태를 유지하며 저장 파일의 복구를 시도한다. |
+| 출차 기록 파일 없음 | 빈 출차 기록으로 시작 |
+| 출차 기록 파일 읽기 실패 | 오류 안내 후 기존 파일 보호 및 추가 입·출차 제한 |
+| 주차 상태 파일 없음 | 빈 주차장으로 시작 |
+| 주차 상태 파일 읽기 실패 | 오류 안내 후 빈 주차장으로 시작하며, 기존 파일 보호를 위해 추가 입·출차를 제한한다. |
 
 ## 9. 팀원별 역할 분담
 
@@ -513,3 +635,4 @@ classDiagram
 | v0.2 | 2026.11.24 | 전기차 및 전기차 충전 공간 관련 내용 전체 삭제(전 공간 일반 주차 공간으로 통일, `ElectricCar`·`ELECTRIC_CAR`·`SlotType` 제거), 화면 구성(1.4) 추가, FR-04 작성, FR-08·10·11 구체화, 차량번호 입력 규칙 확정(5.1), 상태 갱신 규칙 확정 및 이동 경로 추가(5.3·5.4), 프론트엔드 클래스 구조 반영(7장), 역할 분담 및 협의 사항 갱신 |
 | v0.3 | 2026.11.27 | 프로젝트 개요 수정, 최근 입·출차 기록 조회 및 표시 방식 개선(FR-11, 4.5), 주차 공간 배정 규칙과 추후 협의 사항 간 불일치 수정, 확정된 협의 항목 제거 |
 | v0.4 | 2026.11.27 | 요금 정책 확정 및 계산 예시 추가(2.4, FR-07), `Clock` 주입 방식 명시, 현재 주차 상태 저장·복원 확정 및 `parking_state.csv` 형식 추가(1.2, FR-12, NFR-06, 4.5, 8.1), 프론트엔드 클래스 필드·메서드 구체화(7장), 협의 사항 갱신 |
+| v0.5 | 2026.11.27 | Vehicle 상속 구조 개선 및 데이터 규격 수정(4.2), CSV 요금 예시 수정(4.5), 백엔드 클래스의 주요 필드 및 메서드 구체화와 다중성 추가(7장), 주요 클래스 역할 및 파일 저장 예외 처리 보완 |
